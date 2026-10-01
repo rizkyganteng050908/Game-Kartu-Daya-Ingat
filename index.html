@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Match Game - Anime & Superhero Edition</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --card-back: #312e81;
+            --text: #f8fafc;
+            --accent: #f59e0b;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 720px;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: var(--accent);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+
+        /* Menu Pilihan Kesulitan */
+        .difficulty-selector {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn.active {
+            background-color: var(--accent);
+            color: #000;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            background: #0f172a;
+            padding: 12px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            border: 1px solid #334155;
+        }
+
+        .stats-item span {
+            color: var(--accent);
+        }
+
+        /* Board Grid & Card 3D Flip */
+        .game-board {
+            display: grid;
+            gap: 12px;
+            margin: 0 auto 20px auto;
+            perspective: 1000px;
+            justify-content: center;
+        }
+
+        .card {
+            width: 100%;
+            aspect-ratio: 1;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .card.flipped, .card.matched {
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            cursor: default;
+            opacity: 0.75;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.2rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 2px solid #475569;
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, #1e1b4b, var(--card-back));
+            color: #818cf8;
+            font-size: 1.8rem;
+        }
+
+        .card-front::after {
+            content: '❓';
+        }
+
+        .card-back {
+            background-color: #334155;
+            transform: rotateY(180deg);
+            border-color: var(--accent);
+        }
+
+        /* Controls & Utility */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-restart {
+            background-color: var(--success);
+            flex: 1;
+        }
+
+        .btn-restart:hover {
+            background-color: #16a34a;
+        }
+
+        .high-score {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        /* Modal Kemenangan */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+
+        .modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 2px solid var(--accent);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        }
+
+        .modal-content h2 {
+            color: var(--accent);
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .modal-content p {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎴 Memory Match 3D</h1>
+
+    <!-- Pilihan Tingkat Kesulitan -->
+    <div class="difficulty-selector">
+        <button class="btn active" onclick="changeDifficulty(4)">Mudah (4x4)</button>
+        <button class="btn" onclick="changeDifficulty(6)">Sedang (6x6)</button>
+        <button class="btn" onclick="changeDifficulty(8)">Sulit (8x8)</button>
+    </div>
+
+    <!-- Papan Statistik -->
+    <div class="stats-bar">
+        <div class="stats-item">Waktu: <span id="timer">00:00</span></div>
+        <div class="stats-item">Langkah: <span id="moves">0</span></div>
+        <div class="stats-item">Pasangan: <span id="matches">0/8</span></div>
+    </div>
+
+    <!-- Papan Permainan -->
+    <div class="game-board" id="board"></div>
+
+    <!-- Kontrol Game -->
+    <div class="controls">
+        <button class="btn btn-restart" onclick="initGame()">🔄 Ulangi Permainan</button>
+        <div class="high-score">Rekor Terbaik: <strong id="best-score">-</strong></div>
+    </div>
+</div>
+
+<!-- Modal Kemenangan -->
+<div class="modal" id="win-modal">
+    <div class="modal-content">
+        <h2>🎉 Selamat! 🎉</h2>
+        <p>Anda berhasil menyelesaikan permainan!</p>
+        <p>Waktu: <strong id="final-time">00:00</strong></p>
+        <p>Total Langkah: <strong id="final-moves">0</strong></p>
+        <button class="btn btn-restart" style="width: 100%; margin-top: 15px;" onclick="closeModal(); initGame();">Main Lagi</button>
+    </div>
+</div>
+
+<script>
+    // Pool Icon / Emoji (Karakter, Superhero, Anime, & Topeng)
+    const iconPool = [
+        '🥷', '🦸‍♂️', '🦸‍♀️', '🦹‍♂️', '🦹‍♀️', '🧙‍♂️', '🧚‍♀️', '🤖',
+        '🐉', '🦊', '👺', '👹', '👻', 'Alien', '🐲', '⚔️',
+        '⚡', '🔥', '❄️', '🔮', '🎯', '👑', '🌌', '💥',
+        '🤡', '💀', '👾', '🐱‍👤', '🦁', '🐺', '🐼', '🦄'
+    ];
+
+    let gridSize = 4; // Default 4x4
+    let cards = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let totalPairs = 8;
+    let moves = 0;
+    let timerSeconds = 0;
+    let timerInterval = null;
+    let isGameActive = false;
+    let isBoardLocked = false;
+
+    // Web Audio Synthesizer
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'flip') {
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        } else if (type === 'match') {
+            osc.frequency.setValueAtTime(523.25, now); // C5
+            osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.15); // E5
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (type === 'unmatch') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.linearRampToValueAtTime(140, now + 0.15);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
+        } else if (type === 'win') {
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.setValueAtTime(659.25, now + 0.1);
+            osc.frequency.setValueAtTime(783.99, now + 0.2);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+            osc.start(now);
+            osc.stop(now + 0.4);
+        }
+    }
+
+    function changeDifficulty(size) {
+        gridSize = size;
+        document.querySelectorAll('.difficulty-selector .btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.innerText.includes(`${size}x${size}`)) {
+                btn.classList.add('active');
+            }
+        });
+        initGame();
+    }
+
+    function initGame() {
+        clearInterval(timerInterval);
+        isGameActive = false;
+        isBoardLocked = false;
+        flippedCards = [];
+        matchedPairs = 0;
+        moves = 0;
+        timerSeconds = 0;
+        totalPairs = (gridSize * gridSize) / 2;
+
+        document.getElementById('moves').innerText = '0';
+        document.getElementById('timer').innerText = '00:00';
+        document.getElementById('matches').innerText = `0/${totalPairs}`;
+        
+        loadHighScore();
+        setupBoard();
+    }
+
+    function setupBoard() {
+        const board = document.getElementById('board');
+        board.innerHTML = '';
+
+        // Atur layout CSS Grid secara dinamis berdasarkan ukuran
+        board.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+        
+        // Pilih icon unik dan gandakan untuk menjadi pasangan
+        const selectedIcons = iconPool.slice(0, totalPairs);
+        const cardDeck = [...selectedIcons, ...selectedIcons].sort(() => Math.random() - 0.5);
+
+        // Menyesuaikan ukuran font kartu berdasarkan kerapatan grid
+        const fontSize = gridSize === 4 ? '2.5rem' : gridSize === 6 ? '1.8rem' : '1.3rem';
+
+        cardDeck.forEach((icon, index) => {
+            const card = document.createElement('div');
+            card.classList.add('card');
+            card.dataset.icon = icon;
+            card.dataset.index = index;
+
+            card.innerHTML = `
+                <div class="card-face card-front"></div>
+                <div class="card-face card-back" style="font-size: ${fontSize};">${icon === 'Alien' ? '👽' : icon}</div>
+            `;
+
+            card.addEventListener('click', () => flipCard(card));
+            board.appendChild(card);
+        });
+    }
+
+    function startTimer() {
+        if (isGameActive) return;
+        isGameActive = true;
+        timerInterval = setInterval(() => {
+            timerSeconds++;
+            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            document.getElementById('timer').innerText = `${mins}:${secs}`;
+        }, 1000);
+    }
+
+    function flipCard(card) {
+        if (isBoardLocked || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+
+        startTimer();
+        playSound('flip');
+
+        card.classList.add('flipped');
+        flippedCards.push(card);
+
+        if (flippedCards.length === 2) {
+            moves++;
+            document.getElementById('moves').innerText = moves;
+            checkMatch();
+        }
+    }
+
+    function checkMatch() {
+        isBoardLocked = true;
+        const [card1, card2] = flippedCards;
+        const isMatch = card1.dataset.icon === card2.dataset.icon;
+
+        if (isMatch) {
+            playSound('match');
+            card1.classList.add('matched');
+            card2.classList.add('matched');
+            matchedPairs++;
+            document.getElementById('matches').innerText = `${matchedPairs}/${totalPairs}`;
+            flippedCards = [];
+            isBoardLocked = false;
+
+            if (matchedPairs === totalPairs) {
+                handleWin();
+            }
+        } else {
+            playSound('unmatch');
+            setTimeout(() => {
+                card1.classList.remove('flipped');
+                card2.classList.remove('flipped');
+                flippedCards = [];
+                isBoardLocked = false;
+            }, 800);
+        }
+    }
+
+    function handleWin() {
+        clearInterval(timerInterval);
+        playSound('win');
+        saveHighScore();
+
+        const timeText = document.getElementById('timer').innerText;
+        document.getElementById('final-time').innerText = timeText;
+        document.getElementById('final-moves').innerText = moves;
+
+        setTimeout(() => {
+            document.getElementById('win-modal').classList.add('show');
+        }, 500);
+    }
+
+    function closeModal() {
+        document.getElementById('win-modal').classList.remove('show');
+    }
+
+    function saveHighScore() {
+        const key = `memory_best_${gridSize}x${gridSize}`;
+        const currentBest = localStorage.getItem(key);
+
+        if (!currentBest || moves < parseInt(currentBest)) {
+            localStorage.setItem(key, moves);
+            loadHighScore();
+        }
+    }
+
+    function loadHighScore() {
+        const key = `memory_best_${gridSize}x${gridSize}`;
+        const currentBest = localStorage.getItem(key);
+        document.getElementById('best-score').innerText = currentBest ? `${currentBest} Langkah` : '-';
+    }
+
+    // Inisialisasi awal saat halaman dibuka
+    initGame();
+</script>
+
+</body>
+</html>
